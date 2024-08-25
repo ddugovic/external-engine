@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""External engine provider example for lichess.org"""
+"""External engine provider example for lishogi.org"""
 
 import argparse
 import concurrent.futures
@@ -35,37 +35,31 @@ def ok(res):
 
 
 def register_engine(args, http, engine):
-    res = ok(http.get(f"{args.lichess}/api/external-engine"))
+    res = ok(http.get(f"{args.lishogi}/api/external-engine"))
 
     secret = args.provider_secret or secrets.token_urlsafe(32)
 
     variants = {
-        "chess",
-        "antichess",
-        "atomic",
-        "crazyhouse",
-        "horde",
-        "kingofthehill",
-        "racingkings",
-        "3check",
+        "shogi",
+        "checkshogi"
     }
 
     registration = {
         "name": args.name,
         "maxThreads": args.max_threads,
         "maxHash": args.max_hash,
-        "variants": [variant for variant in engine.supported_variants or ["chess"] if variant in variants],
+        "variants": [variant for variant in engine.supported_variants or ["shogi"] if variant in variants],
         "providerSecret": secret,
     }
 
     for engine in res.json():
         if engine["name"] == args.name:
             logging.info("Updating engine %s", engine["id"])
-            ok(http.put(f"{args.lichess}/api/external-engine/{engine['id']}", json=registration))
+            ok(http.put(f"{args.lishogi}/api/external-engine/{engine['id']}", json=registration))
             break
     else:
         logging.info("Registering new engine")
-        ok(http.post(f"{args.lichess}/api/external-engine", json=registration))
+        ok(http.post(f"{args.lishogi}/api/external-engine", json=registration))
 
     return secret
 
@@ -145,7 +139,6 @@ class Engine:
 
         self.uci()
         self.setoption("UCI_AnalyseMode", "true")
-        self.setoption("UCI_Chess960", "true")
         for name, value in args.setoption:
             self.setoption(name, value)
 
@@ -239,7 +232,7 @@ class Engine:
         if options_changed:
             self.isready()
 
-        self.send(f"position fen {work['initialFen']} moves {' '.join(work['moves'])}")
+        self.send(f"position sfen {work['initialSfen']} moves {' '.join(work['moves'])}")
 
         for key in ["movetime", "depth", "nodes"]:
             if key in work:
@@ -280,9 +273,9 @@ if __name__ == "__main__":
     parser.add_argument("--name", default="Alpha 2", help="Engine name to register")
     parser.add_argument("--engine", help="Shell command to launch UCI engine", required=True)
     parser.add_argument("--setoption", nargs=2, action="append", default=[], metavar=("NAME", "VALUE"), help="Set a custom UCI option")
-    parser.add_argument("--lichess", default="https://lichess.org", help="Defaults to https://lichess.org")
-    parser.add_argument("--broker", default="https://engine.lichess.ovh", help="Defaults to https://engine.lichess.ovh")
-    parser.add_argument("--token", default=os.environ.get("LICHESS_API_TOKEN"), help="API token with engine:read and engine:write scopes")
+    parser.add_argument("--lishogi", default="https://lishogi.org", help="Defaults to https://lishogi.org")
+    parser.add_argument("--broker", default="https://engine.lishogi.ovh", help="Defaults to https://engine.lishogi.ovh")
+    parser.add_argument("--token", default=os.environ.get("LISHOGI_API_TOKEN"), help="API token with engine:read and engine:write scopes")
     parser.add_argument("--provider-secret", default=os.environ.get("PROVIDER_SECRET"), help="Optional fixed provider secret")
     parser.add_argument("--max-threads", type=int, default=multiprocessing.cpu_count(), help="Maximum number of available threads")
     parser.add_argument("--max-hash", type=int, default=512, help="Maximum hash table size in MiB")
@@ -301,7 +294,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=_LOG_LEVEL_MAP[args.log_level])
 
     if not args.token:
-        print(f"Need LICHESS_API_TOKEN environment variable from {args.lichess}/account/oauth/token/create?scopes[]=engine:read&scopes[]=engine:write")
+        print(f"Need LISHOGI_API_TOKEN environment variable from {args.lishogi}/account/oauth/token/create?scopes[]=engine:read&scopes[]=engine:write")
         sys.exit(128)
 
     main(args)
